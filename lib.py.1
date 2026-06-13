@@ -5,66 +5,6 @@ from typing import Any, Dict, List, Optional, Protocol, Sequence, Tuple, FrozenS
 from chalk import Diagram
 import random
 
-
-HIDDEN_SIZE = 4096
-BLOCK_SIZE = 1024
-DATATYPE = "float16"
-BYTES_PER_ELEMENT = 2
-global_batch_size = 2048
-
-def get_model_theoretical_best_time(model: Model) -> float:
-    total_flops = (
-        4 * HIDDEN_SIZE * HIDDEN_SIZE * global_batch_size * BLOCK_SIZE * model.LAYERS
-    )
-
-    # matches with H100, 1000 tflops
-    gpu_max_flops = 1e15
-
-    theoretical_best_time = total_flops / (gpu_max_flops * model.RANKS)
-
-    return theoretical_best_time
-
-def check(models: Sequence[Model]) -> None:
-    for l in range(models[0].LAYERS):
-        weight = None
-        for m in models:
-            if l in m.final_weights:
-                assert m.final_weights[l].step == 1
-                if weight is None:
-                    weight = m.final_weights[l]
-                else:
-                    weight = weight.combine(m.final_weights[l])
-
-        assert weight is not None, f"Missing weight {l}"
-        assert weight.is_complete(), f"Weight not complete {weight}"
-
-
-def get_mfu(models: Sequence[Model]) -> float:
-    """Calculate Model FLOPs Utilization (MFU) as a percentage per GPU."""
-    theoretical_time = get_model_theoretical_best_time(models[0])
-    execution_time, _, _ = get_training_stats(models)
-    mfu = (theoretical_time / execution_time) * 100
-    print(f"MFU: {mfu}")
-    return mfu
-
-
-def get_training_stats(models: Sequence[Model]) -> Tuple[int, int, int]:
-    check(models)
-
-    execution_time = max(m.log[-1].time for m in models)
-    max_memory = 0
-    arg_max_memory = None
-    for i, m in enumerate(models):
-        for event in m.log:
-            if event.memory > max_memory:
-                max_memory = event.memory
-                arg_max_memory = (i, event.time)
-    print(
-        f"Execution time: {execution_time} \nMaximum Memory: {max_memory} at GPU: {arg_max_memory[0]} time: {arg_max_memory[1]}"
-    )
-    return execution_time, max_memory, arg_max_memory[0]
-
-
 class Barrier:
     """Sync across n ranks"""
     def __init__(self, target: int):

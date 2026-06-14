@@ -1,5 +1,5 @@
 
-# Exercises & Implementations for How to Scale Your Model!
+# Exercises & Implementations for Research Scientist Recommended Topics
 
 **Author:** Aarav Gupta, Professional Research Larper
 
